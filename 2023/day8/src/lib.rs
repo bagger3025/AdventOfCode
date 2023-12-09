@@ -41,6 +41,20 @@ pub fn process_part1(file: &str) -> String {
     .to_string()
 }
 
+fn get_lcd(a: usize, b: usize) -> usize {
+    if a == 0 {
+        b
+    } else if b == 0 {
+        a
+    } else if a > b {
+        get_lcd(a % b, b)
+    } else if a == b {
+        a
+    } else {
+        get_lcd(b % a, a)
+    }
+}
+
 pub fn process_part2(file: &str) -> String {
     let instructions = file.lines().next().unwrap().to_string();
 
@@ -58,34 +72,44 @@ pub fn process_part2(file: &str) -> String {
             });
     });
 
-	let mut every_states = map.iter().map(|((v, _), _)| (*v, *v)).collect::<HashMap<_, _>>();
-	let mut states_to_state = every_states.iter().map(|st| {
-		match st.0.ends_with('Z') {
-			true => (*st.0, vec![0], *st.0),
-			false => (*st.0, vec![], *st.0)
-		}
-	}).collect::<Vec<_>>();
+    let mut every_states = map
+        .iter()
+        .map(|((v, _), _)| (*v, *v))
+        .collect::<HashMap<_, _>>();
+    let mut states_to_state = every_states
+        .iter()
+        .map(|st| match st.0.ends_with('Z') {
+            true => (*st.0, vec![0], *st.0),
+            false => (*st.0, vec![], *st.0),
+        })
+        .collect::<Vec<_>>();
 
-	instructions.chars().enumerate().for_each(|(i, inst)| {
-		every_states.iter_mut().for_each(|(start, cur)| {
-			match inst {
-				'L' => {*cur = map[&(*cur, 0)]},
-				'R' => {*cur = map[&(*cur, 1)]},
-				_ => panic!("not L or R")
-			};
-			if cur.ends_with('Z') {
-				let mut temp = states_to_state.iter_mut().filter(|(st, _, _)| {
-					st == start
-				}).collect::<Vec<_>>();
-				temp[0].1.push(i + 1);
-			}
-		});
-	});
-	states_to_state.iter_mut().zip(every_states.iter()).for_each(|(st, ev)| {
-		if st.0 != *ev.0{ panic!("not same!");}
-		st.2 = ev.1;
-	});
-	// dbg!(&states_to_state);
+    instructions.chars().enumerate().for_each(|(i, inst)| {
+        every_states.iter_mut().for_each(|(start, cur)| {
+            match inst {
+                'L' => *cur = map[&(*cur, 0)],
+                'R' => *cur = map[&(*cur, 1)],
+                _ => panic!("not L or R"),
+            };
+            if cur.ends_with('Z') {
+                let mut temp = states_to_state
+                    .iter_mut()
+                    .filter(|(st, _, _)| st == start)
+                    .collect::<Vec<_>>();
+                temp[0].1.push(i + 1);
+            }
+        });
+    });
+    states_to_state
+        .iter_mut()
+        .zip(every_states.iter())
+        .for_each(|(st, ev)| {
+            if st.0 != *ev.0 {
+                panic!("not same!");
+            }
+            st.2 = ev.1;
+        });
+    // dbg!(&states_to_state);
 
     let mut cur_states = map
         .iter()
@@ -98,86 +122,49 @@ pub fn process_part2(file: &str) -> String {
     cur_states.dedup();
     // dbg!(&cur_states);
 
-	let mut res = 0;
-	let mut length = instructions.len();
+    let res;
+    let mut length = instructions.len();
 
-	// dbg!(&states_to_state);
-	loop {
+    // dbg!(&states_to_state);
+    loop {
+        let states_to_state2 = states_to_state.clone();
 
-		let states_to_state2 = states_to_state.clone();
-
-		states_to_state.iter_mut().for_each(|(_, v, end)| {
-			let l = states_to_state2.iter().filter(|(start, _, _)| start == end).collect::<Vec<_>>();
-			let after = l.get(0).unwrap();
-			after.1.iter().for_each(|val| {
-				v.push(*val + length);
-			});
-			v.dedup();
-			*end = after.2;
-		});
-		length = length * 2;
-		dbg!(&length);
-		// dbg!(&states_to_state);
-
-		let temp = states_to_state.iter().filter(|e| {
-			cur_states.contains(&e.0)
-		}).collect::<Vec<_>>();
-
-		let mut res_temp = temp[0].1.clone();
-		for t in temp.iter().skip(1) {
-			res_temp = res_temp.into_iter().filter(|e| {
-				t.1.contains(e)
-			}).collect();
-			if res_temp.len() == 0 {
-				break;
-			}
-		}
-		if res_temp.len() > 0 {
-			res_temp.sort();
-			return res_temp[0].to_string();
-		}
-
-		// dbg!(&temp);
-		
-		/*let mut v = temp[0].1.clone();
-		for (_, v2, _) in temp.iter().skip(1) {
-			v = v.into_iter().filter(|e| {
-				v2.contains(e)
-			}).collect();
-			if v.len() == 0 {
-				break;
-			}
-		}
-		if v.len() > 0 {
-			v.sort();
-			res += v[0];
-			break;
-		}
-		res += instructions.len();
-		cur_states.iter_mut().for_each(|st| {
-			*st = states_to_state.iter().filter(|(start, _, _)| {
-				start == st
-			}).map(|ele| {ele.2}).collect::<Vec<_>>().get(0).unwrap();
-		});*/
-	}
-
-	res.to_string()
-    /*let _ = instructions
-        .chars()
-        .cycle()
-        .take_while(|ch| {
-            cur_states.iter_mut().for_each(|ele| {
-                *ele = match ch {
-                    'L' => map[&(*ele, 0)],
-                    'R' => map[&(*ele, 1)],
-                    _ => panic!("Not L or R"),
-                }
+        states_to_state.iter_mut().for_each(|(_, v, end)| {
+            let l = states_to_state2
+                .iter()
+                .filter(|(start, _, _)| start == end)
+                .collect::<Vec<_>>();
+            let after = l.get(0).unwrap();
+            after.1.iter().for_each(|val| {
+                v.push(*val + length);
             });
-			res += 1;
-			// dbg!(&cur_states);
-            !cur_states.iter().all(|ele| ele.ends_with('Z'))
-        }).collect::<Vec<_>>();
-    res.to_string()*/
+            v.dedup();
+            *end = after.2;
+        });
+        length = length * 2;
+        dbg!(&length);
+
+        let temp = states_to_state
+            .iter()
+            .filter(|e| e.0.ends_with("Z"))
+            .map(|e| e.1.get(1).clone())
+            .collect::<Vec<_>>();
+
+        if temp.iter().all(|ele| {
+            ele.is_some()
+        }) {
+            let temp = temp.into_iter().map(|ele| {
+                *ele.unwrap()
+            }).fold(1_usize, |before, cur|{
+                let lcd = get_lcd(before, cur);
+                dbg!(before, cur, lcd);
+                before / lcd * cur
+            });
+            res = temp;
+            break;
+        }
+    }
+    res.to_string()
 }
 
 #[cfg(test)]
